@@ -13,7 +13,7 @@ Create a new Go SGX adapter, then use the adapter to collect quote from SGX enab
 SGX enclave needs to expose a method for creating enclave report and must use SHA256 hash value as reportdata.
 
 ```go
-import "github.com/intel/trustauthority-client/go-sgx"
+import "github.com/jerryrhyu/trustauthority-client/go-sgx"
 
 adapter, err := sgx.NewEvidenceAdapter(enclaveId, enclaveHeldData, unsafe.Pointer(C.enclave_create_report))
 if err != nil {
