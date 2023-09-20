@@ -2,12 +2,12 @@
 // All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-module github.com/intel/trustauthority-client/go-sgx
+module github.com/jerryrhyu/trustauthority-client/go-sgx
 
 go 1.21
 
 require (
-	github.com/intel/trustauthority-client/go-connector v1.0.0
+	github.com/jerryrhyu/trustauthority-client/go-connector v1.0.0
 	github.com/pkg/errors v0.9.1
 )
 
@@ -29,4 +29,4 @@ require (
 	golang.org/x/sys v0.9.0 // indirect
 )
 
-replace github.com/intel/trustauthority-client/go-connector => ../go-connector
+replace github.com/jerryrhyu/trustauthority-client/go-connector => ../go-connector
