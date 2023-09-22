@@ -34,7 +34,7 @@ import "C"
 import (
 	"unsafe"
 
-	"github.com/jerryrhyu/trustauthority-client/go-connector"
+	"github.com/jerryrhyu/trustauthority-client/connector"
 	"github.com/pkg/errors"
 )
 
