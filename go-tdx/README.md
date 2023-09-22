@@ -19,7 +19,7 @@ Create a new TDX adapter, then use the adapter to collect quote from TDX enabled
 Optionally collect the eventlog as well for a TD by passing an eventlog parser in second argument.
 
 ```go
-import "github.com/intel/trustauthority-client/go-tdx"
+import "github.com/jerryrhyu/trustauthority-client/go-tdx"
 
 adapter, err := tdx.NewEvidenceAdapter(tdHeldData, nil)
 if err != nil {

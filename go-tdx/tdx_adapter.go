@@ -8,7 +8,7 @@
 package tdx
 
 import (
-	"github.com/intel/trustauthority-client/go-connector"
+	"github.com/jerryrhyu/trustauthority-client/go-connector"
 )
 
 // TdxAdapter manages TDX Quote collection from TDX enabled platform
