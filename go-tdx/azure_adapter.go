@@ -14,8 +14,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"syscall"
-	"unsafe"
+	"os/exec"
 
 	"github.com/intel/amber/v1/client"
 	"github.com/pkg/errors"
@@ -43,21 +42,6 @@ type QuoteResponse struct {
 	Quote string `json:"quote"`
 }
 
-func IOC(dir, t, nr, size uintptr) uintptr {
-	return (dir << IocDirshift) |
-		(t << IocTypeShift) |
-		(nr << IocNrShift) |
-		(size << IocSizeShift)
-}
-
-func IOWR(t, nr, size uintptr) uintptr {
-	return IOC(IocRead|IocWrite, t, nr, size)
-}
-
-func TdxCmdGetReportIO() uintptr {
-	return IOWR('T', 1, TdxReportDataLen+TdxReportLen)
-}
-
 // CollectEvidence is used to get TDX quote using Azure Quote Generation service
 func (adapter *AzureAdapter) CollectEvidence(nonce []byte) (*client.Evidence, error) {
 
@@ -72,23 +56,10 @@ func (adapter *AzureAdapter) CollectEvidence(nonce []byte) (*client.Evidence, er
 	}
 	reportData := hash.Sum(nil)
 
-	var tdrequest TdxReportRequest
-	copy(tdrequest.ReportData[:], []byte(reportData))
-
-	fd, err := syscall.Open(TdxAttestDevPath, syscall.O_RDWR|syscall.O_SYNC, 0)
+	report, err := getReport(reportData)
 	if err != nil {
-		return nil, err
+		return nil, errors.Errorf("getReport return err %v", err)
 	}
-	defer syscall.Close(fd)
-
-	cmd := TdxCmdGetReportIO()
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), cmd, uintptr(unsafe.Pointer(&tdrequest)))
-	if errno != 0 {
-		return nil, syscall.Errno(errno)
-	}
-
-	report := make([]byte, TdReportSize)
-	copy(report, tdrequest.TdReport[:])
 
 	quote, err := getQuote(report)
 	if err != nil {
@@ -114,6 +85,31 @@ func (adapter *AzureAdapter) CollectEvidence(nonce []byte) (*client.Evidence, er
 		UserData: adapter.uData,
 		EventLog: eventLog,
 	}, nil
+}
+
+func getReport(reportData []byte) ([]byte, error) {
+
+	cmd := exec.Command("tpm2_nvwrite", "-C", "o", "0x1400002", "-i", "-")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		defer stdin.Close()
+		io.WriteString(stdin, string(reportData))
+	}()
+
+	_, err = cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := exec.Command("tpm2_nvread", "-C", "o", "0x01400001", "--offset=32", "-s", "1024").Output()
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func getQuote(report []byte) ([]byte, error) {
