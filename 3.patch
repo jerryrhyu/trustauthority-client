@@ -1,0 +1,77 @@
+diff --git a/go-tdx/azure_adapter.go b/go-tdx/azure_adapter.go
+index 753d9ead8297..ff3fc9090b61 100644
+--- a/go-tdx/azure_adapter.go
++++ b/go-tdx/azure_adapter.go
+@@ -16,12 +16,18 @@ import (
+ 	"io"
+ 	"net/http"
+ 	"os/exec"
+-	"strconv"
+ 
+ 	"github.com/intel/trustauthority-client/go-connector"
+ 	"github.com/pkg/errors"
+ )
+ 
++const (
++	TD_REPORT_OFFSET         = 32
++	TD_REPORT_SIZE           = 1024
++	RUNTIME_DATA_SIZE_OFFSET = 1232
++	RUNTIME_DATA_OFFSET      = 1236
++)
++
+ // AzureAdapter manages TDX Quote collection from Azure TDX platform
+ type azureAdapter struct {
+ 	uData       []byte
+@@ -58,20 +64,19 @@ func (adapter *azureAdapter) CollectEvidence(nonce []byte) (*connector.Evidence,
+ 	}
+ 	reportData := hash.Sum(nil)
+ 
+-	tdReport, err := getTDReport(reportData)
++	tpmReport, err := getTDReport(reportData)
+ 	if err != nil {
+ 		return nil, errors.Errorf("getTDReport returned err %v", err)
+ 	}
++	tdReport := tpmReport[TD_REPORT_OFFSET : TD_REPORT_OFFSET+TD_REPORT_SIZE]
+ 
+ 	quote, err := getQuote(tdReport)
+ 	if err != nil {
+ 		return nil, errors.Errorf("getQuote returned error %v", err)
+ 	}
+ 
+-	runtimeData, err := getRuntimeData()
+-	if err != nil {
+-		return nil, errors.Errorf("getRuntimeData returned error %v", err)
+-	}
++	runtimeDataSize := binary.LittleEndian.Uint32(tpmReport[RUNTIME_DATA_SIZE_OFFSET : RUNTIME_DATA_SIZE_OFFSET+4])
++	runtimeData := tpmReport[RUNTIME_DATA_OFFSET : RUNTIME_DATA_OFFSET+runtimeDataSize]
+ 
+ 	var eventLog []byte
+ 	if adapter.EvLogParser != nil {
+@@ -112,7 +117,7 @@ func getTDReport(reportData []byte) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 
+-	tdReport, err := exec.Command("tpm2_nvread", "-C", "o", "0x01400001", "--offset=32", "-s", "1024").Output()
++	tdReport, err := exec.Command("tpm2_nvread", "-C", "o", "0x01400001").Output()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -172,18 +177,3 @@ func getQuote(report []byte) ([]byte, error) {
+ 	}
+ 	return quote, nil
+ }
+-
+-func getRuntimeData() ([]byte, error) {
+-
+-	size, err := exec.Command("tpm2_nvread", "-C", "o", "0x1400001", "--offset=1232", "-s", "4").Output()
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	runtimeDataSize := binary.LittleEndian.Uint32(size)
+-	runtimeData, err := exec.Command("tpm2_nvread", "-C", "o", "0x01400001", "--offset=1236", "-s", strconv.Itoa(int(runtimeDataSize))).Output()
+-	if err != nil {
+-		return nil, err
+-	}
+-	return runtimeData, nil
+-}
